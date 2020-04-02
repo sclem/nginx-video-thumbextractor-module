@@ -149,12 +149,10 @@ ngx_http_video_thumbextractor_set_request_context(ngx_http_request_t *r)
     ngx_http_video_thumbextractor_ctx_t         *ctx;
     ngx_http_video_thumbextractor_thumb_ctx_t   *thumb_ctx;
     ngx_pool_cleanup_t                          *cln;
-    ngx_http_core_loc_conf_t                    *clcf;
     ngx_str_t                                    vv_filename = ngx_null_string, vv_second = ngx_null_string;
     ngx_str_t                                    vv_value = ngx_null_string;
 
     vtlcf = ngx_http_get_module_loc_conf(r, ngx_http_video_thumbextractor_module);
-    clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_video_thumbextractor_module);
 
@@ -213,12 +211,12 @@ ngx_http_video_thumbextractor_set_request_context(ngx_http_request_t *r)
         return NGX_HTTP_BAD_REQUEST;
     }
 
-    if ((thumb_ctx->filename.data = ngx_pcalloc(r->pool, clcf->root.len + vv_filename.len + 1)) == NULL) {
+    if ((thumb_ctx->filename.data = ngx_pcalloc(r->pool, vv_filename.len + 1)) == NULL) {
         ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0, "video thumb extractor module: unable to allocate memory to store full filename");
         return NGX_ERROR;
     }
-    ngx_memcpy(ngx_copy(thumb_ctx->filename.data, clcf->root.data, clcf->root.len), vv_filename.data, vv_filename.len);
-    thumb_ctx->filename.len = clcf->root.len + vv_filename.len;
+    ngx_memcpy(thumb_ctx->filename.data, vv_filename.data, vv_filename.len);
+    thumb_ctx->filename.len = vv_filename.len;
     thumb_ctx->filename.data[thumb_ctx->filename.len] = '\0';
 
     return NGX_OK;
