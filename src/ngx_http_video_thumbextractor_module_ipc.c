@@ -24,9 +24,6 @@
  *
  */
 
-ngx_http_output_header_filter_pt ngx_http_video_thumbextractor_next_header_filter;
-ngx_http_output_body_filter_pt ngx_http_video_thumbextractor_next_body_filter;
-
 void        ngx_http_video_thumbextractor_fork_extract_process(ngx_uint_t slot);
 void        ngx_http_video_thumbextractor_run_extract(ngx_http_video_thumbextractor_ipc_t *ipc_ctx);
 void        ngx_http_video_thumbextractor_extract_process_read_handler(ngx_event_t *ev);
@@ -297,6 +294,7 @@ ngx_http_video_thumbextractor_extract_process_read_handler(ngx_event_t *ev)
     ngx_http_request_t                        *r;
     ngx_chain_t                               *out;
     ngx_int_t                                  rc;
+    ngx_int_t                                  finalize_ret = NGX_OK;
 
     c = ev->data;
     ipc_ctx = c->data;
@@ -326,12 +324,12 @@ ngx_http_video_thumbextractor_extract_process_read_handler(ngx_event_t *ev)
         switch (transfer->step) {
         case NGX_HTTP_VIDEO_THUMBEXTRACTOR_TRANSFER_RC:
             if (transfer->rc == NGX_ERROR) {
-                ngx_http_filter_finalize_request(r, &ngx_http_video_thumbextractor_module, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                finalize_ret = NGX_HTTP_INTERNAL_SERVER_ERROR;
                 goto exit;
             }
 
             if ((transfer->rc == NGX_HTTP_VIDEO_THUMBEXTRACTOR_FILE_NOT_FOUND) || (transfer->rc == NGX_HTTP_VIDEO_THUMBEXTRACTOR_SECOND_NOT_FOUND)) {
-                ngx_http_filter_finalize_request(r, &ngx_http_video_thumbextractor_module, NGX_HTTP_NOT_FOUND);
+                finalize_ret = NGX_HTTP_NOT_FOUND;
                 goto exit;
             }
 
@@ -342,7 +340,7 @@ ngx_http_video_thumbextractor_extract_process_read_handler(ngx_event_t *ev)
         case NGX_HTTP_VIDEO_THUMBEXTRACTOR_TRANSFER_IMAGE_LEN:
             if ((transfer->buffer.start = ngx_pcalloc(r->pool, transfer->size)) == NULL) {
                 ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0, "video thumb extractor module: unable to allocate buffer to receive the image");
-                ngx_http_filter_finalize_request(r, &ngx_http_video_thumbextractor_module, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                finalize_ret = NGX_HTTP_INTERNAL_SERVER_ERROR;
                 goto exit;
             }
 
@@ -363,11 +361,12 @@ ngx_http_video_thumbextractor_extract_process_read_handler(ngx_event_t *ev)
             r->headers_out.content_type_len = NGX_HTTP_VIDEO_THUMBEXTRACTOR_CONTENT_TYPE.len;
             r->headers_out.status = NGX_HTTP_OK;
             r->headers_out.content_length_n = transfer->size;
+            ngx_http_send_header(r);
 
             out = (ngx_chain_t *) ngx_pcalloc(r->pool, sizeof(ngx_chain_t));
             if (out == NULL) {
                 ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0, "video thumb extractor module: unable to allocate output to send the image");
-                ngx_http_filter_finalize_request(r, &ngx_http_video_thumbextractor_module, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                finalize_ret = NGX_HTTP_INTERNAL_SERVER_ERROR;
                 goto exit;
             }
 
@@ -379,11 +378,7 @@ ngx_http_video_thumbextractor_extract_process_read_handler(ngx_event_t *ev)
             out->buf = &transfer->buffer;
             out->next = NULL;
 
-            rc = ngx_http_video_thumbextractor_next_header_filter(r);
-            if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
-                goto exit;
-            }
-            ngx_http_video_thumbextractor_next_body_filter(r, out);
+            ngx_http_output_filter(r, out);
             goto exit;
 
             break;
@@ -403,7 +398,7 @@ transfer_failed:
 
     if (rc == NGX_ERROR) {
         ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0, "video thumb extractor module: error receiving data from extract thumbor process");
-        ngx_http_filter_finalize_request(r, &ngx_http_video_thumbextractor_module, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
     }
 
 exit:
@@ -413,7 +408,7 @@ exit:
         if (ctx != NULL) {
             ctx->slot = -1;
         }
-        ngx_http_finalize_request(r, NGX_OK);
+        ngx_http_finalize_request(r, finalize_ret);
     }
 
     if (ngx_http_video_thumbextractor_module_ipc_ctxs[ipc_ctx->slot].request == r) {

@@ -33,7 +33,6 @@ static char *ngx_http_video_thumbextractor_init_main_conf(ngx_conf_t *cf, void *
 static void *ngx_http_video_thumbextractor_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_video_thumbextractor_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 
-static ngx_int_t ngx_http_video_thumbextractor_post_config(ngx_conf_t *cf);
 static ngx_int_t ngx_http_video_thumbextractor_init_worker(ngx_cycle_t *cycle);
 static void      ngx_http_video_thumbextractor_exit_worker(ngx_cycle_t *cycle);
 
@@ -190,7 +189,7 @@ static ngx_command_t  ngx_http_video_thumbextractor_commands[] = {
 
 static ngx_http_module_t  ngx_http_video_thumbextractor_module_ctx = {
     NULL,                                           /* preconfiguration */
-    ngx_http_video_thumbextractor_post_config,      /* postconfiguration */
+    NULL,                                           /* postconfiguration */
 
     ngx_http_video_thumbextractor_create_main_conf, /* create main configuration */
     ngx_http_video_thumbextractor_init_main_conf,   /* init main configuration */
@@ -345,24 +344,6 @@ ngx_http_video_thumbextractor_merge_loc_conf(ngx_conf_t *cf, void *parent, void 
 
 
 static ngx_int_t
-ngx_http_video_thumbextractor_post_config(ngx_conf_t *cf)
-{
-    ngx_int_t                        rc;
-
-    if (!ngx_http_video_thumbextractor_used) {
-        return NGX_OK;
-    }
-
-    /* register our output filters */
-    if ((rc = ngx_http_video_thumbextractor_filter_init(cf)) != NGX_OK) {
-        return rc;
-    }
-
-    return NGX_OK;
-}
-
-
-static ngx_int_t
 ngx_http_video_thumbextractor_init_worker(ngx_cycle_t *cycle)
 {
     ngx_uint_t i;
@@ -403,10 +384,12 @@ ngx_http_video_thumbextractor_exit_worker(ngx_cycle_t *cycle)
 static char *
 ngx_http_video_thumbextractor(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
+    ngx_http_core_loc_conf_t                 *clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
     ngx_http_video_thumbextractor_loc_conf_t *vtlcf = conf;
 
+    clcf->handler = ngx_http_video_thumbextractor_handler;
+
     vtlcf->enabled = 1;
-    ngx_http_video_thumbextractor_used = 1;
 
     return NGX_CONF_OK;
 }

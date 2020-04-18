@@ -72,7 +72,7 @@ ngx_http_video_thumbextractor_get_thumb(ngx_http_video_thumbextractor_loc_conf_t
     // Open video file
     if ((ret = avformat_open_input(&pFormatCtx, filename, NULL, NULL)) != 0) {
         ngx_log_error(NGX_LOG_ERR, log, 0, "video thumb extractor module: Couldn't open file %s, error: %d, %s", filename, ret, av_err2str(ret));
-        rc = (ret == AVERROR(NGX_ENOENT)) ? NGX_HTTP_VIDEO_THUMBEXTRACTOR_FILE_NOT_FOUND : NGX_ERROR;
+        rc = (ret == AVERROR(NGX_ENOENT) || ret == AVERROR_HTTP_NOT_FOUND) ? NGX_HTTP_VIDEO_THUMBEXTRACTOR_FILE_NOT_FOUND : NGX_ERROR;
         goto exit;
     }
 
