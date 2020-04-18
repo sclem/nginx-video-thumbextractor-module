@@ -112,9 +112,7 @@ typedef struct {
     ngx_http_video_thumbextractor_transfer_t    transfer;
 } ngx_http_video_thumbextractor_ctx_t;
 
-ngx_int_t ngx_http_video_thumbextractor_access_handler(ngx_http_request_t *r);
-ngx_int_t ngx_http_video_thumbextractor_filter_init(ngx_conf_t *cf);
-
+static ngx_int_t ngx_http_video_thumbextractor_handler(ngx_http_request_t *r);
 
 static ngx_str_t NGX_HTTP_VIDEO_THUMBEXTRACTOR_CONTENT_TYPE = ngx_string("image/jpeg");
 
